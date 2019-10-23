@@ -145,7 +145,7 @@ class CaptioningRNN(object):
         hidden_init, cache_init = affine_forward(features, W_proj, b_proj)
 
         # (2)
-        captions_in_init, cache_embed = word_embedding_forward(captions_in, W_embed)
+        captions_in_init, cache_embedded = word_embedding_forward(captions_in, W_embed)
 
         # (3)
         if self.cell_type == 'rnn':
@@ -172,7 +172,7 @@ class CaptioningRNN(object):
             dcaptions_in_init, dhidden_init, grads['Wx'], grads['Wh'], grads['b'] = lstm_backward(dhidden_rnn, cache_rnn)
 
         # (2)
-        grads['W_embed'] = word_embedding_backward(dcaptions_in_init, cache_embed)
+        grads['W_embed'] = word_embedding_backward(dcaptions_in_init, cache_embedded)
 
         # (1)
         dfeatures, grads['W_proj'], grads['b_proj'] = affine_backward(dhidden_init, cache_init)
@@ -242,27 +242,23 @@ class CaptioningRNN(object):
         ###########################################################################
         hidden_init, _ = affine_forward(features, W_proj, b_proj)
 
-        start_word_embed, _ = word_embedding_forward(self._start, W_embed)
+        word_embed, _ = word_embedding_forward(self._start, W_embed)
 
-        hidden_curr = hidden_init
-        cell_curr = np.zeros_like(hidden_curr)
-
-        word_embed = start_word_embed
+        hidden_current = hidden_init
+        cell_current = np.zeros_like(hidden_current)
+        
 
         for step in range(max_length):
-            # (2)
             if self.cell_type == 'rnn':
-                hidden_curr, _ = rnn_step_forward(word_embed, hidden_curr, Wx, Wh, b)
+                hidden_current, _ = rnn_step_forward(word_embed, hidden_current, Wx, Wh, b)
             else:
-                hidden_curr, cell_curr, _ = lstm_step_forward(word_embed, hidden_curr, cell_curr, Wx, Wh, b)
+                hidden_current, cell_current, _ = lstm_step_forward(word_embed, hidden_current, cell_current, Wx, Wh, b)
 
-            # (3)
-            step_scores, _ = affine_forward(hidden_curr, W_vocab, b_vocab)
+ 
+            step_scores, _ = affine_forward(hidden_current, W_vocab, b_vocab)
 
-            # (4)
             captions[:, step] = np.argmax(step_scores, axis=1)
 
-            # Embedding the output word for the next iteration
             word_embed, _ = word_embedding_forward(captions[:, step], W_embed)
 
         ############################################################################
